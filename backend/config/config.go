@@ -33,7 +33,7 @@ func Load() *Config {
 		JWTSecret:    getEnv("JWT_SECRET", "your-super-secret-jwt-key-here"),
 		Port:         getEnv("PORT", "8080"),
 		GinMode:      getEnv("GIN_MODE", "debug"),
-		OpenAIAPIKey: getEnv("OPENAI_API_KEY", "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"),
+		OpenAIAPIKey: getEnv("OPENAI_API_KEY", ""),
 		OpenAIModel:  getEnv("OPENAI_MODEL", "gpt-3.5-turbo"),
 		CORSOrigin:   getEnv("CORS_ORIGIN", "http://localhost:3000"),
 	}
