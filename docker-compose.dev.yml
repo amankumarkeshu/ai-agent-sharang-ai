@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: intelliops-mongodb-dev
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: intelliops
+    volumes:
+      - mongodb_data_dev:/data/db
+    networks:
+      - intelliops-network
+
+  # Backend API (Development)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: intelliops-backend-dev
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/intelliops?authSource=admin
+      DATABASE_NAME: intelliops
+      JWT_SECRET: dev-secret-key
+      JWT_EXPIRES_IN: 24h
+      PORT: 8080
+      GIN_MODE: debug
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: gpt-3.5-turbo
+      CORS_ORIGIN: http://localhost:3000
+    depends_on:
+      - mongodb
+    networks:
+      - intelliops-network
+    volumes:
+      - ./backend:/app
+    command: ["./main"]
+
+volumes:
+  mongodb_data_dev:
+    driver: local
+
+networks:
+  intelliops-network:
+    driver: bridge
