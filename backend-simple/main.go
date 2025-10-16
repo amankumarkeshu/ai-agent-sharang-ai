@@ -116,6 +116,17 @@ func main() {
 		ai.GET("/technicians", getTechnicians)
 	}
 
+	// Admin routes
+	admin := r.Group("/api/admin")
+	admin.Use(authMiddleware(), adminMiddleware())
+	{
+		admin.GET("/users", getAllUsers)
+		admin.POST("/users", createUser)
+		admin.PUT("/users/:id", updateUser)
+		admin.DELETE("/users/:id", deleteUser)
+		admin.GET("/stats", getSystemStats)
+	}
+
 	log.Println("Server starting on port 8080")
 	r.Run(":8080")
 }
@@ -184,6 +195,26 @@ func authMiddleware() gin.HandlerFunc {
 		}
 
 		c.Set("user", user)
+		c.Next()
+	}
+}
+
+func adminMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		user, exists := c.Get("user")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+			c.Abort()
+			return
+		}
+
+		userObj := user.(User)
+		if userObj.Role != "admin" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
+			c.Abort()
+			return
+		}
+
 		c.Next()
 	}
 }
@@ -401,28 +432,8 @@ func triageTicket(c *gin.Context) {
 		return
 	}
 
-	// Simple mock AI triage
-	response := TriageResponse{
-		Category:            "Network Issue",
-		Summary:             "Issue categorized based on content analysis",
-		Priority:            "medium",
-		SuggestedTechnician: "Ravi Kumar",
-		Confidence:          0.75,
-		Reasoning:           "Analysis based on keyword matching",
-	}
-
-	// Simple keyword-based categorization
-	content := req.Title + " " + req.Description
-	if contains(content, []string{"network", "wifi", "internet", "connection"}) {
-		response.Category = "Network Issue"
-		response.Priority = "high"
-	} else if contains(content, []string{"hardware", "computer", "laptop"}) {
-		response.Category = "Hardware Issue"
-		response.Priority = "medium"
-	} else if contains(content, []string{"software", "application", "program"}) {
-		response.Category = "Software Issue"
-		response.Priority = "low"
-	}
+	// Enhanced AI-like triage with detailed analysis
+	response := generateEnhancedTriageResponse(req)
 
 	c.JSON(http.StatusOK, response)
 }
@@ -462,4 +473,402 @@ func contains(text string, keywords []string) bool {
 		}
 	}
 	return false
+}
+
+func generateEnhancedTriageResponse(req TriageRequest) TriageResponse {
+	// Enhanced keyword-based triage with detailed analysis
+	title := strings.ToLower(req.Title)
+	description := strings.ToLower(req.Description)
+	combined := title + " " + description
+
+	var category string
+	var priority string
+	var suggestedTechnician string
+	var summary string
+	var reasoning string
+	var confidence float64
+
+	// Enhanced categorization with comprehensive keyword analysis - ordered by specificity
+	if contains(combined, []string{"security", "virus", "malware", "breach", "access", "password", "login", "authentication", "unauthorized", "hack", "phishing", "spam", "antivirus", "firewall", "encryption", "ransomware", "trojan"}) {
+		category = "Security Issue"
+		suggestedTechnician = "Sneha Singh"
+		if contains(combined, []string{"virus", "malware", "infected", "antivirus", "ransomware", "trojan"}) {
+			summary = "Malware infection requiring immediate security remediation and system cleaning"
+			reasoning = "Malware keywords indicate active security threat requiring urgent antivirus scanning, quarantine, and system restoration"
+		} else if contains(combined, []string{"password", "login", "access", "authentication", "locked out", "forgot"}) {
+			summary = "Authentication issue requiring access control review and credential management"
+			reasoning = "Authentication keywords suggest access management problems requiring password reset or account unlock procedures"
+		} else if contains(combined, []string{"breach", "unauthorized", "hack", "phishing", "suspicious", "compromise"}) {
+			summary = "Security breach requiring immediate investigation and incident response"
+			reasoning = "Security breach keywords indicate potential system compromise requiring urgent security assessment and remediation"
+		} else if contains(combined, []string{"firewall", "blocked", "port", "access denied"}) {
+			summary = "Firewall or access control issue requiring security policy review"
+			reasoning = "Firewall keywords suggest network security configuration problems requiring policy adjustment"
+		} else {
+			summary = "Security concern requiring comprehensive assessment and protective measures"
+			reasoning = "Security-related keywords suggest potential threats or vulnerabilities requiring security evaluation"
+		}
+		confidence = 0.90
+	} else if contains(combined, []string{"slow", "performance", "lag", "freeze", "hang", "timeout", "response", "speed", "optimization", "cpu", "disk space", "storage", "capacity", "bottleneck", "sluggish"}) {
+		category = "Performance Issue"
+		suggestedTechnician = "Rajesh Kumar"
+		if contains(combined, []string{"slow", "lag", "performance", "sluggish", "taking long"}) {
+			summary = "System performance degradation requiring optimization analysis and resource tuning"
+			reasoning = "Performance keywords indicate system slowdown requiring resource analysis and performance optimization"
+		} else if contains(combined, []string{"cpu", "processor", "high usage", "100%"}) {
+			summary = "CPU utilization issue requiring process analysis and resource management"
+			reasoning = "CPU keywords suggest processor utilization problems requiring process monitoring and optimization"
+		} else if contains(combined, []string{"disk", "storage", "space", "capacity", "full", "low space"}) {
+			summary = "Storage capacity issue requiring disk space management and cleanup procedures"
+			reasoning = "Storage keywords indicate disk space problems requiring cleanup, archival, or storage expansion"
+		} else if contains(combined, []string{"memory", "ram", "usage", "leak"}) {
+			summary = "Memory utilization issue requiring RAM analysis and optimization"
+			reasoning = "Memory keywords suggest RAM utilization problems requiring memory leak detection and optimization"
+		} else {
+			summary = "System performance issue requiring comprehensive resource analysis and optimization"
+			reasoning = "Performance-related keywords suggest system optimization needed across multiple resource categories"
+		}
+		confidence = 0.80
+	} else if contains(combined, []string{"network", "wifi", "internet", "connection", "router", "switch", "ethernet", "dns", "ip", "vpn", "firewall", "bandwidth", "ping", "connectivity", "lan", "wan"}) {
+		category = "Network Issue"
+		suggestedTechnician = "Ravi Kumar"
+		if contains(combined, []string{"wifi", "wireless", "signal", "access point"}) {
+			summary = "Wireless network connectivity issue requiring WiFi infrastructure review"
+			reasoning = "WiFi-related keywords detected, indicating wireless network problems that may require access point configuration or signal strength analysis"
+		} else if contains(combined, []string{"internet", "dns", "external", "website", "browsing"}) {
+			summary = "Internet connectivity issue affecting external access and web browsing"
+			reasoning = "Internet/DNS keywords suggest external connectivity problems that may require ISP coordination or DNS configuration"
+		} else if contains(combined, []string{"vpn", "remote", "tunnel"}) {
+			summary = "VPN connectivity issue affecting remote access capabilities"
+			reasoning = "VPN-related keywords indicate remote access problems requiring VPN server or client configuration"
+		} else {
+			summary = "Network infrastructure issue requiring connectivity analysis and troubleshooting"
+			reasoning = "Network-related keywords indicate infrastructure or configuration problems affecting local or wide area connectivity"
+		}
+		confidence = 0.88
+	} else if contains(combined, []string{"hardware", "computer", "laptop", "desktop", "printer", "monitor", "keyboard", "mouse", "screen", "display", "power", "boot", "startup", "fan", "overheating", "memory", "ram", "disk", "hard drive", "ssd", "motherboard", "cpu", "graphics"}) {
+		category = "Hardware Issue"
+		suggestedTechnician = "Amit Patel"
+		if contains(combined, []string{"printer", "print", "paper", "ink", "toner", "cartridge", "jam"}) {
+			summary = "Printer hardware malfunction requiring physical inspection and maintenance"
+			reasoning = "Printer-specific keywords indicate hardware maintenance needed, possibly involving paper jams, ink/toner replacement, or mechanical repairs"
+		} else if contains(combined, []string{"screen", "display", "monitor", "resolution", "flickering", "blank", "no display"}) {
+			summary = "Display hardware issue affecting visual output and user interface"
+			reasoning = "Display-related keywords suggest monitor, graphics card, or cable problems requiring hardware diagnostics"
+		} else if contains(combined, []string{"boot", "startup", "power", "won't start", "won't turn on", "dead"}) {
+			summary = "System startup failure requiring comprehensive hardware diagnostics"
+			reasoning = "Boot/power keywords indicate fundamental hardware problems with power supply, motherboard, or core components"
+		} else if contains(combined, []string{"overheating", "fan", "temperature", "hot", "thermal"}) {
+			summary = "System overheating issue requiring cooling system inspection and maintenance"
+			reasoning = "Thermal keywords suggest cooling system problems that could lead to hardware damage if not addressed promptly"
+		} else if contains(combined, []string{"memory", "ram", "blue screen", "bsod", "crash"}) {
+			summary = "Memory hardware issue causing system instability and crashes"
+			reasoning = "Memory-related keywords indicate RAM problems requiring memory testing and potential replacement"
+		} else {
+			summary = "Hardware component malfunction requiring physical inspection and diagnostic testing"
+			reasoning = "Hardware-related keywords suggest physical component failure requiring hands-on troubleshooting and potential replacement"
+		}
+		confidence = 0.85
+	} else if contains(combined, []string{"software", "application", "program", "install", "update", "crash", "error", "bug", "license", "version", "compatibility", "driver", "patch", "upgrade", "uninstall", "exe", "dll", "registry"}) {
+		category = "Software Issue"
+		suggestedTechnician = "Priya Sharma"
+		if contains(combined, []string{"install", "installation", "setup", "deployment", "configure"}) {
+			summary = "Software installation issue requiring configuration assistance and deployment support"
+			reasoning = "Installation keywords suggest setup or deployment problems that may require administrator privileges or compatibility adjustments"
+		} else if contains(combined, []string{"crash", "error", "bug", "freeze", "hang", "not responding"}) {
+			summary = "Software stability issue requiring troubleshooting and debugging procedures"
+			reasoning = "Crash/error keywords indicate software malfunction or compatibility issues requiring log analysis and troubleshooting"
+		} else if contains(combined, []string{"update", "upgrade", "patch", "version", "compatibility"}) {
+			summary = "Software update issue requiring version management and compatibility testing"
+			reasoning = "Update-related keywords suggest version compatibility or upgrade problems requiring careful version control"
+		} else if contains(combined, []string{"driver", "device", "hardware driver"}) {
+			summary = "Device driver issue affecting hardware functionality and system integration"
+			reasoning = "Driver keywords indicate hardware-software interface problems requiring driver updates or reinstallation"
+		} else if contains(combined, []string{"license", "activation", "key", "expired"}) {
+			summary = "Software licensing issue requiring activation or license management"
+			reasoning = "License keywords suggest software activation or compliance issues requiring license key management"
+		} else {
+			summary = "Software functionality issue requiring application troubleshooting and configuration"
+			reasoning = "Software-related keywords indicate application or system software problems requiring technical support"
+		}
+		confidence = 0.83
+	} else if contains(combined, []string{"email", "outlook", "exchange", "calendar", "meeting", "appointment", "contact", "address book", "sync", "mail", "smtp", "pop", "imap"}) {
+		category = "Software Issue"
+		suggestedTechnician = "Priya Sharma"
+		summary = "Email system issue requiring communication software configuration and troubleshooting"
+		reasoning = "Email-related keywords suggest communication software problems requiring email client or server configuration"
+		confidence = 0.78
+	} else if contains(combined, []string{"mobile", "phone", "tablet", "android", "ios", "iphone", "ipad", "sync", "app", "mobile device"}) {
+		category = "Software Issue"
+		suggestedTechnician = "Mobile Support Specialist"
+		summary = "Mobile device integration issue requiring mobile device management and synchronization"
+		reasoning = "Mobile device keywords suggest smartphone or tablet integration problems requiring MDM configuration"
+		confidence = 0.75
+	} else if contains(combined, []string{"backup", "restore", "data", "file", "document", "recovery", "lost", "deleted", "missing", "corrupt", "archive"}) {
+		category = "Other"
+		suggestedTechnician = "Data Recovery Specialist"
+		summary = "Data management issue requiring backup and recovery procedures"
+		reasoning = "Data-related keywords suggest file management, backup, or recovery needs requiring data protection services"
+		confidence = 0.72
+	} else if contains(combined, []string{"database", "sql", "server", "connection", "query", "table", "record"}) {
+		category = "Software Issue"
+		suggestedTechnician = "Database Administrator"
+		summary = "Database connectivity or functionality issue requiring database administration"
+		reasoning = "Database keywords suggest database server or application problems requiring DBA expertise"
+		confidence = 0.85
+	} else {
+		category = "Other"
+		suggestedTechnician = "General Support"
+		summary = "General IT issue requiring initial assessment and proper categorization"
+		reasoning = "No specific category keywords detected, requires manual review and assessment for proper classification and routing"
+		confidence = 0.50
+	}
+
+	// Enhanced priority determination with business impact analysis
+	if contains(combined, []string{"urgent", "critical", "emergency", "down", "outage", "can't work", "production", "business critical", "all users", "entire system", "server down", "system down"}) {
+		priority = "critical"
+		confidence += 0.10
+		if !strings.Contains(summary, "requiring immediate") {
+			summary = strings.Replace(summary, "requiring", "requiring immediate", 1)
+		}
+	} else if contains(combined, []string{"high", "important", "asap", "immediately", "blocking", "multiple users", "department", "deadline", "affecting many"}) {
+		priority = "high"
+		confidence += 0.05
+	} else if contains(combined, []string{"low", "minor", "when possible", "convenience", "enhancement", "nice to have", "cosmetic", "suggestion"}) {
+		priority = "low"
+		confidence -= 0.05
+	} else if contains(combined, []string{"medium", "normal", "standard", "single user", "individual", "one person"}) {
+		priority = "medium"
+	} else {
+		// Smart priority assignment based on category and context
+		if category == "Security Issue" {
+			priority = "high"
+			reasoning += " Security issues are automatically prioritized as high risk."
+		} else if category == "Network Issue" && contains(combined, []string{"internet", "all users", "wifi"}) {
+			priority = "high"
+			reasoning += " Network issues affecting multiple users are prioritized."
+		} else if category == "Hardware Issue" && contains(combined, []string{"server", "critical", "production"}) {
+			priority = "high"
+			reasoning += " Hardware issues on critical systems are prioritized."
+		} else {
+			priority = "medium"
+		}
+	}
+
+	// Ensure confidence is within bounds
+	if confidence > 1.0 {
+		confidence = 1.0
+	} else if confidence < 0.0 {
+		confidence = 0.0
+	}
+
+	return TriageResponse{
+		Category:            category,
+		Summary:             summary,
+		Priority:            priority,
+		SuggestedTechnician: suggestedTechnician,
+		Confidence:          confidence,
+		Reasoning:           reasoning,
+	}
+}
+
+// Admin handlers
+func getAllUsers(c *gin.Context) {
+	var userList []User
+	for _, user := range users {
+		// Remove password from response
+		userCopy := user
+		userCopy.Password = ""
+		userList = append(userList, userCopy)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"users": userList,
+		"total": len(userList),
+	})
+}
+
+func createUser(c *gin.Context) {
+	var req RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if user already exists
+	if _, exists := users[req.Email]; exists {
+		c.JSON(http.StatusConflict, gin.H{"error": "User already exists"})
+		return
+	}
+
+	// Validate role
+	if req.Role != "admin" && req.Role != "technician" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Role must be 'admin' or 'technician'"})
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+
+	user := User{
+		ID:       generateID(),
+		Name:     req.Name,
+		Email:    req.Email,
+		Password: string(hashedPassword),
+		Role:     req.Role,
+	}
+
+	users[req.Email] = user
+
+	// Remove password from response
+	user.Password = ""
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "User created successfully",
+		"user":    user,
+	})
+}
+
+func updateUser(c *gin.Context) {
+	id := c.Param("id")
+	
+	// Find user by ID
+	var targetUser User
+	var targetEmail string
+	found := false
+	for email, user := range users {
+		if user.ID == id {
+			targetUser = user
+			targetEmail = email
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	var req map[string]interface{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Update fields
+	if name, ok := req["name"].(string); ok && name != "" {
+		targetUser.Name = name
+	}
+	if role, ok := req["role"].(string); ok && role != "" {
+		if role != "admin" && role != "technician" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Role must be 'admin' or 'technician'"})
+			return
+		}
+		targetUser.Role = role
+	}
+	if password, ok := req["password"].(string); ok && password != "" {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+			return
+		}
+		targetUser.Password = string(hashedPassword)
+	}
+
+	users[targetEmail] = targetUser
+
+	// Remove password from response
+	targetUser.Password = ""
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User updated successfully",
+		"user":    targetUser,
+	})
+}
+
+func deleteUser(c *gin.Context) {
+	id := c.Param("id")
+	
+	// Get current user to prevent self-deletion
+	currentUser, _ := c.Get("user")
+	currentUserObj := currentUser.(User)
+	
+	if currentUserObj.ID == id {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete your own account"})
+		return
+	}
+
+	// Find and delete user by ID
+	var targetEmail string
+	found := false
+	for email, user := range users {
+		if user.ID == id {
+			targetEmail = email
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	delete(users, targetEmail)
+	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
+}
+
+func getSystemStats(c *gin.Context) {
+	// Calculate stats
+	totalUsers := len(users)
+	totalTickets := len(tickets)
+	
+	adminCount := 0
+	technicianCount := 0
+	for _, user := range users {
+		if user.Role == "admin" {
+			adminCount++
+		} else if user.Role == "technician" {
+			technicianCount++
+		}
+	}
+
+	openTickets := 0
+	inProgressTickets := 0
+	resolvedTickets := 0
+	criticalTickets := 0
+	
+	for _, ticket := range tickets {
+		switch ticket.Status {
+		case "open":
+			openTickets++
+		case "in_progress":
+			inProgressTickets++
+		case "resolved":
+			resolvedTickets++
+		}
+		
+		if ticket.Priority == "critical" {
+			criticalTickets++
+		}
+	}
+
+	stats := gin.H{
+		"users": gin.H{
+			"total":       totalUsers,
+			"admins":      adminCount,
+			"technicians": technicianCount,
+		},
+		"tickets": gin.H{
+			"total":      totalTickets,
+			"open":       openTickets,
+			"inProgress": inProgressTickets,
+			"resolved":   resolvedTickets,
+			"critical":   criticalTickets,
+		},
+	}
+
+	c.JSON(http.StatusOK, stats)
 }
