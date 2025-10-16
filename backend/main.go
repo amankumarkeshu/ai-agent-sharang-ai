@@ -89,6 +89,17 @@ func setupRoutes(authHandler *handlers.AuthHandler, ticketHandler *handlers.Tick
 			ai.POST("/triage", aiHandler.TriageTicket)
 			ai.GET("/technicians", aiHandler.GetTechnicians)
 		}
+
+		// Admin routes
+		admin := api.Group("/admin")
+		admin.Use(middleware.AuthMiddleware(db, jwtSecret), middleware.AdminMiddleware())
+		{
+			admin.GET("/users", authHandler.GetAllUsers)
+			admin.POST("/users", authHandler.CreateUser)
+			admin.PUT("/users/:id", authHandler.UpdateUser)
+			admin.DELETE("/users/:id", authHandler.DeleteUser)
+			admin.GET("/stats", authHandler.GetSystemStats)
+		}
 	}
 
 	return r
