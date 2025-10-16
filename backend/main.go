@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/gin-gonic/gin"
 
@@ -31,9 +30,9 @@ func main() {
 	createDefaultAdmin(db)
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(db, cfg.JWTSecret, cfg.JWTExpiry)
+	authHandler := handlers.NewAuthHandler(db, cfg.JWTSecret, cfg.JWTExpiresIn)
 	ticketHandler := handlers.NewTicketHandler(db)
-	aiHandler := handlers.NewAIHandler(db, cfg.OpenAIAPIKey, cfg.OpenAIModel)
+	aiHandler := handlers.NewAIHandler(db, cfg.OpenAIAPIKey, cfg.OpenAIModel, cfg.LocalLLMURL, cfg.AIProvider)
 
 	// Setup routes
 	r := setupRoutes(authHandler, ticketHandler, aiHandler, db, cfg.JWTSecret)

@@ -18,6 +18,8 @@ type Config struct {
 	GinMode       string
 	OpenAIAPIKey  string
 	OpenAIModel   string
+	LocalLLMURL   string
+	AIProvider    string // "openai" or "local"
 	CORSOrigin    string
 }
 
@@ -35,6 +37,8 @@ func Load() *Config {
 		GinMode:      getEnv("GIN_MODE", "debug"),
 		OpenAIAPIKey: getEnv("OPENAI_API_KEY", ""),
 		OpenAIModel:  getEnv("OPENAI_MODEL", "gpt-3.5-turbo"),
+		LocalLLMURL:  getEnv("LOCAL_LLM_URL", ""),
+		AIProvider:   getEnv("AI_PROVIDER", "openai"),
 		CORSOrigin:   getEnv("CORS_ORIGIN", "http://localhost:3000"),
 	}
 
