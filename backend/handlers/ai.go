@@ -11,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 
 	"intelliops-ai-copilot/database"
 	"intelliops-ai-copilot/models"
@@ -21,6 +20,8 @@ type AIHandler struct {
 	db           *database.MongoDB
 	openAIAPIKey string
 	openAIModel  string
+	localLLMURL  string
+	aiProvider   string
 }
 
 type OpenAIRequest struct {
@@ -43,11 +44,13 @@ type Choice struct {
 	Message Message `json:"message"`
 }
 
-func NewAIHandler(db *database.MongoDB, openAIAPIKey, openAIModel string) *AIHandler {
+func NewAIHandler(db *database.MongoDB, openAIAPIKey, openAIModel, localLLMURL, aiProvider string) *AIHandler {
 	return &AIHandler{
 		db:           db,
 		openAIAPIKey: openAIAPIKey,
 		openAIModel:  openAIModel,
+		localLLMURL:  localLLMURL,
+		aiProvider:   aiProvider,
 	}
 }
 
@@ -58,18 +61,33 @@ func (h *AIHandler) TriageTicket(c *gin.Context) {
 		return
 	}
 
-	// If no OpenAI API key, return mock response
-	if h.openAIAPIKey == "" {
-		mockResponse := h.generateMockTriageResponse(req)
-		c.JSON(http.StatusOK, mockResponse)
-		return
-	}
+	var response *models.TriageResponse
+	var err error
 
-	// Call OpenAI API
-	response, err := h.callOpenAI(req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process AI triage"})
-		return
+	// Determine which AI provider to use
+	switch h.aiProvider {
+	case "local":
+		if h.localLLMURL == "" {
+			response = h.generateMockTriageResponse(req)
+		} else {
+			response, err = h.callLocalLLM(req)
+			if err != nil {
+				// Fallback to mock if local LLM fails
+				response = h.generateMockTriageResponse(req)
+			}
+		}
+	case "openai":
+		if h.openAIAPIKey == "" {
+			response = h.generateMockTriageResponse(req)
+		} else {
+			response, err = h.callOpenAI(req)
+			if err != nil {
+				// Fallback to mock if OpenAI fails
+				response = h.generateMockTriageResponse(req)
+			}
+		}
+	default:
+		response = h.generateMockTriageResponse(req)
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -141,6 +159,80 @@ Respond only with valid JSON, no additional text.
 	// Parse the JSON response from OpenAI
 	var triageResp models.TriageResponse
 	if err := json.Unmarshal([]byte(openAIResp.Choices[0].Message.Content), &triageResp); err != nil {
+		// If parsing fails, return mock response
+		return h.generateMockTriageResponse(req), nil
+	}
+
+	return &triageResp, nil
+}
+
+func (h *AIHandler) callLocalLLM(req models.TriageRequest) (*models.TriageResponse, error) {
+	prompt := fmt.Sprintf(`
+Analyze the following IT support ticket and provide triage information:
+
+Title: %s
+Description: %s
+
+Please respond with a JSON object containing:
+- category: One of "Network Issue", "Hardware Issue", "Software Issue", "Security Issue", "Performance Issue", or "Other"
+- summary: A brief 1-2 sentence summary of the issue
+- priority: One of "low", "medium", "high", or "critical"
+- suggestedTechnician: A suggested technician name (use Indian names like "Ravi Kumar", "Priya Sharma", "Amit Patel", "Sneha Singh")
+- confidence: A number between 0.0 and 1.0 indicating confidence in the analysis
+- reasoning: Brief explanation of the categorization
+
+Respond only with valid JSON, no additional text.
+`, req.Title, req.Description)
+
+	// Create request for local LLM (assuming OpenAI-compatible API)
+	localReq := OpenAIRequest{
+		Model: "local-model", // This will be ignored by most local LLMs
+		Messages: []Message{
+			{
+				Role:    "system",
+				Content: "You are an expert IT support triage specialist. Analyze tickets and provide structured triage information.",
+			},
+			{
+				Role:    "user",
+				Content: prompt,
+			},
+		},
+		Temperature: 0.3,
+		MaxTokens:   500,
+	}
+
+	jsonData, err := json.Marshal(localReq)
+	if err != nil {
+		return nil, err
+	}
+
+	// Call local LLM endpoint
+	httpReq, err := http.NewRequest("POST", h.localLLMURL+"/v1/chat/completions", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 60 * time.Second} // Longer timeout for local LLMs
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var localResp OpenAIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&localResp); err != nil {
+		return nil, err
+	}
+
+	if len(localResp.Choices) == 0 {
+		return nil, fmt.Errorf("no response from local LLM")
+	}
+
+	// Parse the JSON response from local LLM
+	var triageResp models.TriageResponse
+	if err := json.Unmarshal([]byte(localResp.Choices[0].Message.Content), &triageResp); err != nil {
 		// If parsing fails, return mock response
 		return h.generateMockTriageResponse(req), nil
 	}

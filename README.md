@@ -4,7 +4,8 @@ An AI-powered operations assistant for MSPs that automatically triages tickets, 
 
 ## 🚀 Features
 
-- **AI Auto-Triage**: Automatically categorizes and prioritizes service requests using OpenAI GPT
+### Core Features
+- **AI Auto-Triage**: Automatically categorizes and prioritizes service requests using OpenAI GPT or Local LLM
 - **Smart Assignment**: Assigns the right technician based on skills and availability
 - **Real-time Dashboard**: Live monitoring of tickets and technician status
 - **Role-based Access**: Admin and Technician user roles with JWT authentication
@@ -12,14 +13,49 @@ An AI-powered operations assistant for MSPs that automatically triages tickets, 
 - **RESTful API**: Comprehensive backend API built with Go and Gin framework
 - **Docker Ready**: Complete containerized deployment with Docker Compose
 
+### AI Features
+- **Multiple AI Providers**: Support for OpenAI API and Local LLM integration
+- **Intelligent Categorization**: Automatic ticket classification into 6 categories
+- **Priority Assessment**: AI-driven priority assignment (Critical, High, Medium, Low)
+- **Technician Suggestions**: Smart technician assignment based on expertise
+- **Confidence Scoring**: AI provides confidence levels for quality assurance
+- **Fallback System**: Graceful degradation to keyword-based triage when AI is unavailable
+
+### User Experience
+- **Interactive AI Triage**: One-click AI analysis with detailed suggestions
+- **Admin Dashboard**: Comprehensive system overview and user management
+- **Profile Management**: User profiles with ticket statistics and activity
+- **Advanced Filtering**: Search and filter tickets by multiple criteria
+- **Responsive Design**: Works seamlessly on desktop and mobile devices
+- **Real-time Updates**: Live ticket status updates and notifications
+
+### Security & Compliance
+- **JWT Authentication**: Secure token-based authentication
+- **Role-based Authorization**: Granular permissions for different user types
+- **Data Privacy**: Local LLM option for sensitive data requirements
+- **Audit Trail**: Complete logging of user actions and system events
+
 ## 🏗️ Architecture
 
+### Technology Stack
 - **Frontend**: React 18 + TypeScript + Tailwind CSS
 - **Backend**: Go 1.21 + Gin framework
-- **Database**: MongoDB 7.0
-- **AI Integration**: OpenAI API (configurable for local LLM)
+- **Database**: MongoDB 7.0 (with in-memory fallback for development)
+- **AI Integration**: OpenAI API + Local LLM support (Ollama, LM Studio, etc.)
 - **Deployment**: Docker Compose (multi-container setup)
 - **Authentication**: JWT-based with role-based access control
+
+### AI Integration Options
+1. **OpenAI API**: Cloud-based AI with GPT-3.5/GPT-4 models
+2. **Local LLM**: On-premise AI with models like Llama 2, Code Llama, Mistral
+3. **Hybrid Mode**: OpenAI as primary with local LLM fallback
+4. **Mock Mode**: Keyword-based triage for development/testing
+
+### Backend Architecture
+- **Modular Design**: Separate handlers, middleware, and database layers
+- **Multiple Backends**: Full MongoDB backend + Simplified in-memory backend
+- **Graceful Fallbacks**: AI failures gracefully degrade to mock responses
+- **Authorization**: Role-based access control with user ownership checks
 
 ## 🚀 Quick Start
 
@@ -275,55 +311,99 @@ The application creates a default admin user on first startup:
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017` |
-| `DATABASE_NAME` | Database name | `intelliops` |
-| `JWT_SECRET` | JWT signing secret | `your-super-secret-jwt-key-here` |
-| `JWT_EXPIRES_IN` | JWT expiration time | `24h` |
-| `PORT` | Backend server port | `8080` |
-| `GIN_MODE` | Gin framework mode | `debug` |
-| `OPENAI_API_KEY` | OpenAI API key | (required for AI features) |
-| `OPENAI_MODEL` | OpenAI model to use | `gpt-3.5-turbo` |
-| `CORS_ORIGIN` | CORS allowed origin | `http://localhost:3000` |
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017` | No |
+| `DATABASE_NAME` | Database name | `intelliops` | No |
+| `JWT_SECRET` | JWT signing secret | `your-super-secret-jwt-key-here` | Yes |
+| `JWT_EXPIRES_IN` | JWT expiration time | `24h` | No |
+| `PORT` | Backend server port | `8080` | No |
+| `GIN_MODE` | Gin framework mode | `debug` | No |
+| `AI_PROVIDER` | AI provider (`openai`, `local`, or `mock`) | `openai` | No |
+| `OPENAI_API_KEY` | OpenAI API key | (empty) | For OpenAI |
+| `OPENAI_MODEL` | OpenAI model to use | `gpt-3.5-turbo` | No |
+| `LOCAL_LLM_URL` | Local LLM API endpoint | (empty) | For Local LLM |
+| `CORS_ORIGIN` | CORS allowed origin | `http://localhost:3000` | No |
 
-### OpenAI Configuration
+### AI Configuration
 
-To enable AI auto-triage features:
+#### Option 1: OpenAI API (Recommended for Production)
 1. Get an API key from [OpenAI](https://platform.openai.com/api-keys)
-2. Set the `OPENAI_API_KEY` environment variable
+2. Set environment variables:
+   ```bash
+   export AI_PROVIDER="openai"
+   export OPENAI_API_KEY="your-openai-api-key"
+   export OPENAI_MODEL="gpt-3.5-turbo"  # or "gpt-4"
+   ```
 3. Restart the backend service
 
-Without OpenAI API key, the system will use mock AI triage responses.
+**See [OPENAI_SETUP.md](OPENAI_SETUP.md) for detailed setup instructions.**
+
+#### Option 2: Local LLM (Privacy-First)
+1. Install a local LLM solution (Ollama, LM Studio, etc.)
+2. Set environment variables:
+   ```bash
+   export AI_PROVIDER="local"
+   export LOCAL_LLM_URL="http://localhost:11434"  # Ollama default
+   ```
+3. Restart the backend service
+
+**See [LOCAL_LLM_SETUP.md](LOCAL_LLM_SETUP.md) for detailed setup instructions.**
+
+#### Option 3: Mock Mode (Development)
+```bash
+export AI_PROVIDER="mock"
+```
+Uses keyword-based triage for development and testing.
+
+#### Fallback Behavior
+- If OpenAI API fails → Falls back to mock triage
+- If Local LLM fails → Falls back to mock triage
+- Mock triage uses keyword matching for basic categorization
 
 ## 🚀 Features in Detail
 
 ### AI Auto-Triage
-- Analyzes ticket title and description
-- Categorizes issues (Network, Hardware, Software, Security, Performance, Other)
-- Assigns priority levels (Low, Medium, High, Critical)
-- Suggests appropriate technicians
-- Provides confidence scores and reasoning
+- **Multi-Provider Support**: OpenAI API, Local LLM, or Mock mode
+- **Intelligent Analysis**: Deep understanding of technical issues
+- **Category Classification**: Network, Hardware, Software, Security, Performance, Other
+- **Priority Assessment**: Critical, High, Medium, Low based on business impact
+- **Technician Matching**: Suggests best-fit technicians based on expertise
+- **Confidence Scoring**: 0.0-1.0 confidence levels for quality assurance
+- **Detailed Reasoning**: Explains categorization decisions
+- **Graceful Fallbacks**: Continues working even when AI services are unavailable
 
-### Ticket Management
-- Create, read, update, delete tickets
-- Filter by status, priority, category
-- Search functionality
-- Real-time updates
-- Assignment to technicians
+### Advanced Ticket Management
+- **Full CRUD Operations**: Create, read, update, delete with proper authorization
+- **Smart Filtering**: Multi-criteria search and filtering
+- **Real-time Updates**: Live status changes and notifications
+- **Bulk Operations**: Admin can manage multiple tickets efficiently
+- **Assignment System**: Intelligent technician assignment and workload balancing
+- **Status Tracking**: Open → In Progress → Resolved → Closed workflow
+- **Audit Trail**: Complete history of ticket changes and interactions
 
-### User Management
-- JWT-based authentication
-- Role-based access control (Admin, Technician)
-- Secure password hashing
-- Session management
+### User Management & Security
+- **JWT Authentication**: Secure, stateless authentication
+- **Role-based Authorization**: Admin and Technician roles with different permissions
+- **User Ownership**: Users can only modify their own tickets (except admins)
+- **Profile Management**: User profiles with statistics and activity tracking
+- **Secure Password Handling**: bcrypt hashing with salt
+- **Session Management**: Automatic token refresh and logout
 
-### Modern UI
-- Responsive design
-- Dark/light theme support
-- Real-time updates
-- Intuitive user experience
-- Mobile-friendly
+### Admin Dashboard
+- **System Overview**: Real-time statistics and metrics
+- **User Management**: View and manage all system users
+- **Ticket Analytics**: Comprehensive ticket analysis and reporting
+- **Performance Monitoring**: Track AI triage accuracy and system performance
+- **Bulk Operations**: Efficient management of multiple tickets and users
+
+### Modern User Experience
+- **Responsive Design**: Works perfectly on desktop, tablet, and mobile
+- **Interactive AI**: One-click AI triage with detailed suggestion display
+- **Real-time Feedback**: Immediate responses and status updates
+- **Intuitive Navigation**: Clean, modern interface with logical flow
+- **Accessibility**: WCAG compliant design for all users
+- **Progressive Enhancement**: Works even with JavaScript disabled
 
 ## 🛠️ Troubleshooting
 

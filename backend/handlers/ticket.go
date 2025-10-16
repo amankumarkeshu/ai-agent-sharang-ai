@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -49,11 +50,11 @@ func (h *TicketHandler) GetTickets(c *gin.Context) {
 	// Pagination
 	pageInt := 1
 	limitInt := 10
-	if p, err := primitive.ParseObjectID(page); err == nil {
-		pageInt = int(p.Timestamp().Unix())
+	if p, err := strconv.Atoi(page); err == nil && p > 0 {
+		pageInt = p
 	}
-	if l, err := primitive.ParseObjectID(limit); err == nil {
-		limitInt = int(l.Timestamp().Unix())
+	if l, err := strconv.Atoi(limit); err == nil && l > 0 {
+		limitInt = l
 	}
 
 	skip := (pageInt - 1) * limitInt
@@ -121,12 +122,14 @@ func (h *TicketHandler) CreateTicket(c *gin.Context) {
 		return
 	}
 
-	// Get user ID from context
-	userID, exists := c.Get("userID")
+	// Get user from context
+	user, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
+	
+	userObj := user.(models.User)
 
 	// Set default values
 	if req.Category == "" {
@@ -143,7 +146,7 @@ func (h *TicketHandler) CreateTicket(c *gin.Context) {
 		Category:    req.Category,
 		Priority:    req.Priority,
 		Status:      models.StatusOpen,
-		CreatedBy:   userID.(primitive.ObjectID),
+		CreatedBy:   userObj.ID,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -162,6 +165,32 @@ func (h *TicketHandler) UpdateTicket(c *gin.Context) {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
+		return
+	}
+
+	// Get authenticated user
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	userObj := user.(models.User)
+
+	// Check if ticket exists and get current ticket
+	var ticket models.Ticket
+	err = h.db.GetCollection("tickets").FindOne(context.Background(), bson.M{"_id": objectID}).Decode(&ticket)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Ticket not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch ticket"})
+		return
+	}
+
+	// Check if user can update this ticket (creator or admin)
+	if userObj.Role != models.RoleAdmin && ticket.CreatedBy != userObj.ID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only update your own tickets"})
 		return
 	}
 
@@ -220,6 +249,32 @@ func (h *TicketHandler) DeleteTicket(c *gin.Context) {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
+		return
+	}
+
+	// Get authenticated user
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	userObj := user.(models.User)
+
+	// Check if ticket exists and get current ticket
+	var ticket models.Ticket
+	err = h.db.GetCollection("tickets").FindOne(context.Background(), bson.M{"_id": objectID}).Decode(&ticket)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Ticket not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch ticket"})
+		return
+	}
+
+	// Check if user can delete this ticket (creator or admin)
+	if userObj.Role != models.RoleAdmin && ticket.CreatedBy != userObj.ID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only delete your own tickets"})
 		return
 	}
 
