@@ -10,6 +10,7 @@ import (
 	"intelliops-ai-copilot/handlers"
 	"intelliops-ai-copilot/middleware"
 	"intelliops-ai-copilot/models"
+	"intelliops-ai-copilot/services"
 )
 
 func main() {
@@ -29,13 +30,19 @@ func main() {
 	// Create default admin user if it doesn't exist
 	createDefaultAdmin(db)
 
+	// Initialize services
+	vectorService := services.NewVectorService(cfg.OpenAIAPIKey, cfg.LocalLLMURL, cfg.AIProvider)
+	docService := services.NewDocumentService(vectorService)
+	llmService := services.NewLLMService(cfg.OpenAIAPIKey, cfg.OpenAIModel, cfg.LocalLLMURL, cfg.AIProvider)
+
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(db, cfg.JWTSecret, cfg.JWTExpiresIn)
 	ticketHandler := handlers.NewTicketHandler(db)
 	aiHandler := handlers.NewAIHandler(db, cfg.OpenAIAPIKey, cfg.OpenAIModel, cfg.LocalLLMURL, cfg.AIProvider)
+	docHandler := handlers.NewDocumentHandler(db, docService, vectorService, llmService)
 
 	// Setup routes
-	r := setupRoutes(authHandler, ticketHandler, aiHandler, db, cfg.JWTSecret)
+	r := setupRoutes(authHandler, ticketHandler, aiHandler, docHandler, db, cfg.JWTSecret)
 
 	// Start server
 	port := cfg.Port
@@ -49,7 +56,7 @@ func main() {
 	}
 }
 
-func setupRoutes(authHandler *handlers.AuthHandler, ticketHandler *handlers.TicketHandler, aiHandler *handlers.AIHandler, db *database.MongoDB, jwtSecret string) *gin.Engine {
+func setupRoutes(authHandler *handlers.AuthHandler, ticketHandler *handlers.TicketHandler, aiHandler *handlers.AIHandler, docHandler *handlers.DocumentHandler, db *database.MongoDB, jwtSecret string) *gin.Engine {
 	r := gin.Default()
 
 	// Middleware
@@ -80,6 +87,7 @@ func setupRoutes(authHandler *handlers.AuthHandler, ticketHandler *handlers.Tick
 			tickets.POST("", ticketHandler.CreateTicket)
 			tickets.PUT("/:id", ticketHandler.UpdateTicket)
 			tickets.DELETE("/:id", ticketHandler.DeleteTicket)
+			tickets.GET("/:id/solutions", docHandler.GetTicketSolutions) // New route for solutions
 		}
 
 		// AI routes
@@ -88,6 +96,16 @@ func setupRoutes(authHandler *handlers.AuthHandler, ticketHandler *handlers.Tick
 		{
 			ai.POST("/triage", aiHandler.TriageTicket)
 			ai.GET("/technicians", aiHandler.GetTechnicians)
+		}
+
+		// Document routes
+		docs := api.Group("/docs")
+		docs.Use(middleware.AuthMiddleware(db, jwtSecret))
+		{
+			docs.POST("/index", docHandler.IndexDocuments)
+			docs.POST("/search", docHandler.SearchDocuments)
+			docs.POST("/upload", docHandler.UploadDocument)
+			docs.GET("/stats", docHandler.GetIndexStats)
 		}
 
 		// Admin routes

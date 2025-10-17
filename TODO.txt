@@ -1,0 +1,9 @@
+TODO
+1. Add login and logout button in the navbar
+2. After creating a ticket, send a mail to the admin and the technician who is assigned to the ticket
+3. Add a button to assign a technician to a ticket
+4. Add a button to resolve a ticket
+5. Add a button to edit a ticket
+6. Add a button to delete a ticket
+7. Assign technician and allow him to comment on the ticket
+8. Add a feature to read a folder of pdf files and find the relevant information to the ticket. 

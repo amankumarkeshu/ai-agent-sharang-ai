@@ -1,0 +1,339 @@
+
+Document: Common Issues and Solutions in an Interview Platform (mockwise.in)
+1. Dashboard Not Loading
+Symptoms:
+Dashboard takes long to load or shows a blank screen.
+
+
+API calls to /api/dashboard hang or fail intermittently.
+
+
+Possible Causes:
+Backend API latency or goroutine leak.
+
+
+Inefficient DB queries (e.g., N+1 queries for user stats, test history).
+
+
+Missing dependency in React useEffect (infinite re-renders).
+
+
+Improper caching (React state resets on navigation).
+
+
+Solutions:
+Profile Go API using pprof and fix long-running handlers.
+
+
+Add caching (Redis or in-memory) for dashboard stats.
+
+
+Optimize DB queries using joins or prefetching.
+
+
+Use React Query or SWR for consistent caching and retries.
+
+
+Add skeleton loaders to improve UX.
+
+
+
+2. User Unable to Submit Code / Answers
+Symptoms:
+“Submit” button does nothing or shows “Something went wrong.”
+
+
+Submissions don’t reach backend or are lost in transit.
+
+
+Possible Causes:
+Race conditions in concurrent request handling.
+
+
+JSON decoding errors (Go’s json.Unmarshal silently failing).
+
+
+Timeout or missing CORS headers in fetch.
+
+
+Wrong content-type (text/plain instead of application/json).
+
+
+Solutions:
+Add robust input validation and explicit error handling in Go (log.Printf for body parsing errors).
+
+
+Set proper timeouts on HTTP clients and handlers.
+
+
+Implement CORS middleware (using rs/cors or custom handler).
+
+
+Use request ID tracing in logs to debug dropped submissions.
+
+
+
+3. User Unable to Read Problem / Problem Not Loading
+Symptoms:
+Problem page stays blank or partially renders.
+
+
+API /api/problem/{id} fails intermittently.
+
+
+Possible Causes:
+Problem statement stored as Markdown/HTML but rendered as raw text.
+
+
+Caching stale problems or permissions mismatch.
+
+
+DB transaction isolation issue while updating problems.
+
+
+Solutions:
+Sanitize and render Markdown safely on frontend (e.g., react-markdown).
+
+
+Ensure consistent API response schema (ProblemDTO).
+
+
+Add ETag headers for browser caching.
+
+
+Use sqlx or gorm with clear transaction scopes.
+
+
+
+4. Code Editor Not Responding / Laggy
+Symptoms:
+Typing lag in editor (Monaco or Ace).
+
+
+Losing code state on refresh.
+
+
+Possible Causes:
+Large state updates in React component.
+
+
+Unnecessary re-renders or missing memoization.
+
+
+Saving code on every keystroke causing backend spam.
+
+
+Solutions:
+Debounce save calls using lodash or custom hooks.
+
+
+Store code in localStorage or React Query cache.
+
+
+Use React.memo for heavy components.
+
+
+Use WebSocket for real-time sync instead of polling.
+
+
+
+5. Real-Time Features (Timer, Test State) Desynchronizing
+Symptoms:
+Timer resets unexpectedly.
+
+
+User’s state (e.g., "in progress") not synced with backend.
+
+
+Possible Causes:
+Backend sends time in different timezones.
+
+
+Frontend doesn’t handle race between “fetch state” and “start test”.
+
+
+Solutions:
+Standardize on UTC in backend (time.Now().UTC()).
+
+
+Use WebSocket or Server-Sent Events for live updates.
+
+
+Add a consistent state machine on client (Idle → Active → Submitted).
+
+
+
+6. Authentication / Session Issues
+Symptoms:
+User randomly logged out.
+
+
+JWT tokens invalid or expired too early.
+
+
+Possible Causes:
+Wrong clock sync between backend servers.
+
+
+Misconfigured cookie flags (missing SameSite=None; Secure).
+
+
+Token rotation logic broken.
+
+
+Solutions:
+Sync time on all backend nodes (chronyd/ntpd).
+
+
+Use refresh tokens with rolling expiration.
+
+
+Store JWT expiry in client and proactively refresh.
+
+
+
+7. Syntax Checking Appears Wrong
+Symptoms:
+User writes invalid code but compiler says “Syntax OK.”
+
+
+Wrong error messages displayed.
+
+
+Possible Causes:
+Backend compiler service swallowing errors.
+
+
+Using exec.Command without capturing stderr.
+
+
+Frontend ignoring error JSON.
+
+
+Solutions:
+Capture both stdout and stderr in Go’s cmd.CombinedOutput().
+
+
+Return structured error object ({"error": "Syntax error at line 4"}).
+
+
+Surface error in frontend properly with code highlights.
+
+
+
+8. Slow or Failed Problem Evaluation
+Symptoms:
+“Evaluating…” spinner stays forever.
+
+
+Submissions don’t complete or give wrong verdicts.
+
+
+Possible Causes:
+Evaluation worker stuck or deadlocked.
+
+
+Unbounded goroutines running test cases.
+
+
+Resource exhaustion in sandboxed environment.
+
+
+Solutions:
+Use job queues (Redis, RabbitMQ) for async evaluation.
+
+
+Enforce per-test timeout using context.WithTimeout.
+
+
+Monitor goroutine leaks with runtime.NumGoroutine().
+
+
+Containerize execution (Docker sandbox) for isolation.
+
+
+
+9. Concurrent User Load Crashes App
+Symptoms:
+System crashes or becomes unresponsive under load.
+
+
+Possible Causes:
+Shared map access without mutex → race condition.
+
+
+Memory leaks due to goroutine not closed.
+
+
+Lack of connection pooling for DB.
+
+
+Solutions:
+Use sync.Map or proper mutex locking.
+
+
+Use Go’s race detector (go run -race) in staging.
+
+
+Use connection pooling (e.g., db.SetMaxOpenConns).
+
+
+Add Prometheus + Grafana metrics for real-time health.
+
+
+
+10. Deployment & Config Issues
+Symptoms:
+Works locally but fails in ECS/production.
+
+
+Missing .env vars or wrong build command.
+
+
+Possible Causes:
+Environment-specific configs not injected.
+
+
+React build using wrong API base URL.
+
+
+Missing health checks or graceful shutdown in Go.
+
+
+Solutions:
+Use .env + viper or envconfig for config management.
+
+
+Add /healthz endpoint and ECS container health checks.
+
+
+Gracefully handle SIGTERM for rolling deploys.
+
+
+
+Summary Recommendations
+Category
+Best Practice
+Monitoring
+Add Prometheus, Loki, and Grafana dashboards
+Error Tracking
+Integrate Sentry (frontend + backend)
+Testing
+Add integration tests (Go + Jest/Playwright)
+CI/CD
+Use GitHub Actions or AWS CodePipeline
+Logging
+Use structured logging (Zap / Zerolog) with correlation IDs
+Performance
+Use pprof, caching, and async job processing
+
+
+Would you like me to:
+🧾 Export this as a formatted .docx or PDF (for documentation or investor/demo use)?
+
+
+🔍 Or expand it further into a "Technical Postmortem + Prevention Guide", with Go/React code snippets for each fix?
+
+
+(Option 2 is extremely useful if you plan to onboard other engineers or showcase this as your architecture maturity.)
+
