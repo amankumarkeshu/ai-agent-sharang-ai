@@ -1,8 +1,13 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,7 +19,9 @@ import (
 // Simple in-memory storage
 var users = make(map[string]User)
 var tickets = make(map[string]Ticket)
+var documents = make(map[string]Document)
 var nextTicketID = 1
+var nextDocumentID = 1
 
 type User struct {
 	ID       string `json:"id"`
