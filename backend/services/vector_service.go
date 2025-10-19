@@ -30,12 +30,35 @@ func NewVectorService(openAIAPIKey, localLLMURL, provider string) *VectorService
 
 // GenerateEmbedding generates vector embedding for text
 func (v *VectorService) GenerateEmbedding(text string) ([]float32, error) {
+	apiKeyPreview := "empty"
+	if len(v.openAIAPIKey) > 10 {
+		apiKeyPreview = v.openAIAPIKey[:10] + "..."
+	} else if v.openAIAPIKey != "" {
+		apiKeyPreview = "short"
+	}
+	fmt.Printf("GenerateEmbedding called with provider: %s, apiKey: %s\n", v.provider, apiKeyPreview)
+	
 	if v.provider == "openai" && v.openAIAPIKey != "" {
-		return v.generateOpenAIEmbedding(text)
+		fmt.Printf("Trying OpenAI embedding...\n")
+		embedding, err := v.generateOpenAIEmbedding(text)
+		if err != nil {
+			fmt.Printf("OpenAI embedding failed, falling back to simple embedding: %v\n", err)
+			// Fallback to simple hash-based embedding if OpenAI fails
+			return v.generateSimpleEmbedding(text), nil
+		}
+		return embedding, nil
 	} else if v.provider == "local" && v.localLLMURL != "" {
-		return v.generateLocalEmbedding(text)
+		fmt.Printf("Trying local embedding...\n")
+		embedding, err := v.generateLocalEmbedding(text)
+		if err != nil {
+			fmt.Printf("Local embedding failed, falling back to simple embedding: %v\n", err)
+			// Fallback to simple hash-based embedding if local fails
+			return v.generateSimpleEmbedding(text), nil
+		}
+		return embedding, nil
 	}
 
+	fmt.Printf("Using simple embedding fallback\n")
 	// Fallback to simple hash-based embedding (for testing)
 	return v.generateSimpleEmbedding(text), nil
 }
@@ -52,6 +75,7 @@ func (v *VectorService) generateOpenAIEmbedding(text string) ([]float32, error) 
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
+		fmt.Printf("Error creating request: %v\n", err)
 		return nil, err
 	}
 
@@ -61,20 +85,34 @@ func (v *VectorService) generateOpenAIEmbedding(text string) ([]float32, error) 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		fmt.Printf("Error making request to OpenAI: %v\n", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	body, _ := ioutil.ReadAll(resp.Body)
+	fmt.Printf("OpenAI response status: %d, body: %s\n", resp.StatusCode, string(body))
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("OpenAI API error: status %d, body: %s", resp.StatusCode, string(body))
+	}
 
 	var result struct {
 		Data []struct {
 			Embedding []float32 `json:"embedding"`
 		} `json:"data"`
+		Error struct {
+			Message string `json:"message"`
+		} `json:"error"`
 	}
 
 	if err := json.Unmarshal(body, &result); err != nil {
+		fmt.Printf("Error unmarshaling response: %v\n", err)
 		return nil, err
+	}
+
+	if result.Error.Message != "" {
+		return nil, fmt.Errorf("OpenAI API error: %s", result.Error.Message)
 	}
 
 	if len(result.Data) == 0 {
