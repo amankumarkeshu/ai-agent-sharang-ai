@@ -173,6 +173,8 @@ func (h *DocumentHandler) GetTicketSolutions(c *gin.Context) {
 	// Search relevant documents
 	queryEmbedding, err := h.vectorService.GenerateEmbedding(query)
 	if err != nil {
+		// This should not happen anymore since GenerateEmbedding has fallbacks
+		fmt.Printf("Unexpected embedding error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate embedding"})
 		return
 	}
@@ -185,10 +187,21 @@ func (h *DocumentHandler) GetTicketSolutions(c *gin.Context) {
 
 	// Generate solutions using LLM
 	solutions, err := h.llmService.GenerateSolutions(ticket, docResults)
+	fmt.Printf("DEBUG: LLM service returned solutions: %v, error: %v\n", solutions, err)
 	if err != nil {
 		// Log error but don't fail - return mock solutions
 		fmt.Printf("LLM generation failed: %v\n", err)
+		solutions = []models.SuggestedSolution{} // Ensure solutions is never nil
+		fmt.Printf("DEBUG: Set solutions to empty slice after error\n")
 	}
+
+	// Ensure solutions is never nil (defensive programming)
+	if solutions == nil {
+		fmt.Printf("DEBUG: Solutions was nil, setting to empty slice\n")
+		solutions = []models.SuggestedSolution{}
+	}
+	
+	fmt.Printf("DEBUG: Final solutions before response: %v\n", solutions)
 
 	// Calculate confidence based on document relevance
 	confidence := calculateConfidence(docResults)

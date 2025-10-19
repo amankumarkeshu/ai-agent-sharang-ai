@@ -29,6 +29,7 @@ func NewLLMService(openAIAPIKey, openAIModel, localLLMURL, provider string) *LLM
 
 // GenerateSolutions generates solution suggestions based on ticket and documents
 func (l *LLMService) GenerateSolutions(ticket models.Ticket, docResults []models.DocumentSearchResult) ([]models.SuggestedSolution, error) {
+	fmt.Printf("DEBUG: GenerateSolutions called with provider: %s\n", l.provider)
 	// Build context from document results
 	var contextBuilder strings.Builder
 	contextBuilder.WriteString("Relevant Documentation:\n\n")
@@ -69,13 +70,34 @@ Format your response as JSON with the following structure:
 }`, ticket.Title, ticket.Description, ticket.Category, ticket.Priority, contextBuilder.String())
 
 	if l.provider == "openai" && l.openAIAPIKey != "" {
-		return l.callOpenAI(prompt)
+		fmt.Printf("DEBUG: Calling OpenAI with API key present\n")
+		solutions, err := l.callOpenAI(prompt)
+		if err != nil {
+			fmt.Printf("OpenAI LLM failed, falling back to mock solutions: %v\n", err)
+			mockSolutions := l.generateMockSolutions(ticket, docResults)
+			fmt.Printf("DEBUG: Generated %d mock solutions\n", len(mockSolutions))
+			return mockSolutions, nil
+		}
+		fmt.Printf("DEBUG: OpenAI returned %d solutions\n", len(solutions))
+		return solutions, nil
 	} else if l.provider == "local" && l.localLLMURL != "" {
-		return l.callLocalLLM(prompt)
+		fmt.Printf("DEBUG: Calling local LLM\n")
+		solutions, err := l.callLocalLLM(prompt)
+		if err != nil {
+			fmt.Printf("Local LLM failed, falling back to mock solutions: %v\n", err)
+			mockSolutions := l.generateMockSolutions(ticket, docResults)
+			fmt.Printf("DEBUG: Generated %d mock solutions\n", len(mockSolutions))
+			return mockSolutions, nil
+		}
+		fmt.Printf("DEBUG: Local LLM returned %d solutions\n", len(solutions))
+		return solutions, nil
 	}
 
 	// Fallback to mock solutions
-	return l.generateMockSolutions(ticket, docResults), nil
+	fmt.Printf("DEBUG: Using fallback mock solutions\n")
+	mockSolutions := l.generateMockSolutions(ticket, docResults)
+	fmt.Printf("DEBUG: Generated %d fallback mock solutions\n", len(mockSolutions))
+	return mockSolutions, nil
 }
 
 func (l *LLMService) callOpenAI(prompt string) ([]models.SuggestedSolution, error) {
@@ -94,7 +116,7 @@ func (l *LLMService) callOpenAI(prompt string) ([]models.SuggestedSolution, erro
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, err
+		return []models.SuggestedSolution{}, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -103,7 +125,7 @@ func (l *LLMService) callOpenAI(prompt string) ([]models.SuggestedSolution, erro
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return []models.SuggestedSolution{}, err
 	}
 	defer resp.Body.Close()
 
@@ -118,11 +140,11 @@ func (l *LLMService) callOpenAI(prompt string) ([]models.SuggestedSolution, erro
 	}
 
 	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, err
+		return []models.SuggestedSolution{}, err
 	}
 
 	if len(result.Choices) == 0 {
-		return nil, fmt.Errorf("no response from OpenAI")
+		return []models.SuggestedSolution{}, fmt.Errorf("no response from OpenAI")
 	}
 
 	// Parse the JSON response
@@ -148,8 +170,8 @@ func (l *LLMService) callOpenAI(prompt string) ([]models.SuggestedSolution, erro
 	}
 
 	if err := json.Unmarshal([]byte(strings.TrimSpace(content)), &solutionResponse); err != nil {
-		// If parsing fails, return mock solutions
-		return nil, fmt.Errorf("failed to parse OpenAI response: %v", err)
+		// If parsing fails, return empty slice
+		return []models.SuggestedSolution{}, fmt.Errorf("failed to parse OpenAI response: %v", err)
 	}
 
 	return solutionResponse.Solutions, nil
@@ -171,7 +193,7 @@ func (l *LLMService) callLocalLLM(prompt string) ([]models.SuggestedSolution, er
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, err
+		return []models.SuggestedSolution{}, err
 	}
 	defer resp.Body.Close()
 
@@ -186,11 +208,11 @@ func (l *LLMService) callLocalLLM(prompt string) ([]models.SuggestedSolution, er
 	}
 
 	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, err
+		return []models.SuggestedSolution{}, err
 	}
 
 	if len(result.Choices) == 0 {
-		return nil, fmt.Errorf("no response from local LLM")
+		return []models.SuggestedSolution{}, fmt.Errorf("no response from local LLM")
 	}
 
 	var solutionResponse struct {
@@ -198,7 +220,7 @@ func (l *LLMService) callLocalLLM(prompt string) ([]models.SuggestedSolution, er
 	}
 
 	if err := json.Unmarshal([]byte(result.Choices[0].Message.Content), &solutionResponse); err != nil {
-		return nil, err
+		return []models.SuggestedSolution{}, err
 	}
 
 	return solutionResponse.Solutions, nil
