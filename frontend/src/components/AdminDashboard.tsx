@@ -7,7 +7,7 @@ import EditUserModal from './EditUserModal';
 import { Link } from 'react-router-dom';
 import {
     Users,
-    Ticket as 
+    Ticket as TicketIcon,
     Shield,
     Activity,
     TrendingUp,
