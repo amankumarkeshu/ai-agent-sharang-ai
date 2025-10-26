@@ -1,0 +1,193 @@
+name: Deploy to AWS ECS
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-west-2
+  PROJECT_NAME: intelliops-ai-copilot
+  ENVIRONMENT: prod
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '16'
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Cache Node modules
+      uses: actions/cache@v3
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Test Backend
+      working-directory: ./backend
+      run: |
+        go mod download
+        go test -v ./...
+
+    - name: Test Frontend
+      working-directory: ./frontend
+      run: |
+        npm ci
+        npm run test -- --coverage --watchAll=false
+
+  build-and-deploy:
+    name: Build and Deploy to AWS
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Get Terraform outputs
+      id: terraform-outputs
+      working-directory: ./aws-infrastructure
+      run: |
+        # Check if Terraform state exists
+        if [ ! -f "terraform.tfstate" ]; then
+          echo "❌ Terraform state not found. Please deploy infrastructure first."
+          exit 1
+        fi
+        
+        # Get ECR repository URLs
+        FRONTEND_ECR_URL=$(terraform output -raw ecr_frontend_repository_url)
+        BACKEND_ECR_URL=$(terraform output -raw ecr_backend_repository_url)
+        ECS_CLUSTER_NAME=$(terraform output -raw ecs_cluster_name)
+        
+        echo "frontend-ecr-url=$FRONTEND_ECR_URL" >> $GITHUB_OUTPUT
+        echo "backend-ecr-url=$BACKEND_ECR_URL" >> $GITHUB_OUTPUT
+        echo "ecs-cluster-name=$ECS_CLUSTER_NAME" >> $GITHUB_OUTPUT
+
+    - name: Build and push Frontend image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: ${{ steps.terraform-outputs.outputs.frontend-ecr-url }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # Build frontend image
+        docker build -t $ECR_REPOSITORY:$IMAGE_TAG ./frontend
+        docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REPOSITORY:latest
+        
+        # Push to ECR
+        docker push $ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REPOSITORY:latest
+
+    - name: Build and push Backend image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: ${{ steps.terraform-outputs.outputs.backend-ecr-url }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # Build backend image
+        docker build -t $ECR_REPOSITORY:$IMAGE_TAG ./backend
+        docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REPOSITORY:latest
+        
+        # Push to ECR
+        docker push $ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REPOSITORY:latest
+
+    - name: Update ECS services
+      env:
+        ECS_CLUSTER_NAME: ${{ steps.terraform-outputs.outputs.ecs-cluster-name }}
+      run: |
+        # Update frontend service
+        aws ecs update-service \
+          --cluster $ECS_CLUSTER_NAME \
+          --service $PROJECT_NAME-frontend \
+          --force-new-deployment \
+          --region $AWS_REGION
+
+        # Update backend service
+        aws ecs update-service \
+          --cluster $ECS_CLUSTER_NAME \
+          --service $PROJECT_NAME-backend \
+          --force-new-deployment \
+          --region $AWS_REGION
+
+    - name: Wait for deployment
+      env:
+        ECS_CLUSTER_NAME: ${{ steps.terraform-outputs.outputs.ecs-cluster-name }}
+      run: |
+        echo "⏳ Waiting for services to stabilize..."
+        
+        # Wait for frontend service
+        aws ecs wait services-stable \
+          --cluster $ECS_CLUSTER_NAME \
+          --services $PROJECT_NAME-frontend \
+          --region $AWS_REGION
+        
+        # Wait for backend service
+        aws ecs wait services-stable \
+          --cluster $ECS_CLUSTER_NAME \
+          --services $PROJECT_NAME-backend \
+          --region $AWS_REGION
+        
+        echo "✅ Deployment completed successfully!"
+
+    - name: Get application URL
+      working-directory: ./aws-infrastructure
+      run: |
+        ALB_DNS_NAME=$(terraform output -raw alb_dns_name)
+        echo "🎉 Application deployed successfully!"
+        echo "Application URL: http://$ALB_DNS_NAME"
+        echo "API URL: http://$ALB_DNS_NAME/api"
+
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [test, build-and-deploy]
+    if: always()
+    
+    steps:
+    - name: Notify Success
+      if: needs.build-and-deploy.result == 'success'
+      run: |
+        echo "✅ Deployment successful!"
+        # Add your notification logic here (Slack, email, etc.)
+    
+    - name: Notify Failure
+      if: needs.build-and-deploy.result == 'failure' || needs.test.result == 'failure'
+      run: |
+        echo "❌ Deployment failed!"
+        # Add your notification logic here (Slack, email, etc.)
