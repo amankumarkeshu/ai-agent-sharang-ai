@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"context"
 
 	"github.com/gin-gonic/gin"
 
@@ -34,6 +35,20 @@ func main() {
 	vectorService := services.NewVectorService(cfg.OpenAIAPIKey, cfg.LocalLLMURL, cfg.AIProvider)
 	docService := services.NewDocumentService(vectorService)
 	llmService := services.NewLLMService(cfg.OpenAIAPIKey, cfg.OpenAIModel, cfg.LocalLLMURL, cfg.AIProvider)
+
+	// Monitoring services
+	var monitorSvc *services.MonitoringService
+	if cfg.MonitoringEnabled {
+		ctx := context.Background()
+		cw, err := services.NewCloudWatchService(ctx, cfg.AWSRegion)
+		if err != nil {
+			log.Printf("Failed to init CloudWatch client: %v", err)
+		} else {
+			monitorSvc = services.NewMonitoringService(db, cw, cfg, llmService)
+			monitorSvc.Start(ctx)
+			log.Println("Monitoring worker started")
+		}
+	}
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(db, cfg.JWTSecret, cfg.JWTExpiresIn)
@@ -117,6 +132,18 @@ func setupRoutes(authHandler *handlers.AuthHandler, ticketHandler *handlers.Tick
 			admin.PUT("/users/:id", authHandler.UpdateUser)
 			admin.DELETE("/users/:id", authHandler.DeleteUser)
 			admin.GET("/stats", authHandler.GetSystemStats)
+
+			// Monitoring admin
+			mon := handlers.NewMonitorHandler(db)
+			admin.POST("/monitor/resources", mon.CreateResource)
+			admin.GET("/monitor/resources", mon.ListResources)
+			admin.PUT("/monitor/resources/:id", mon.UpdateResource)
+			admin.DELETE("/monitor/resources/:id", mon.DeleteResource)
+			admin.POST("/monitor/metrics", mon.CreateMetric)
+			admin.GET("/monitor/metrics", mon.ListMetrics)
+			admin.PUT("/monitor/metrics/:id", mon.UpdateMetric)
+			admin.DELETE("/monitor/metrics/:id", mon.DeleteMetric)
+			admin.GET("/monitor/anomalies", mon.ListAnomalies)
 		}
 	}
 

@@ -108,7 +108,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ onClose, onTicket
                             required
                             value={formData.title}
                             onChange={handleChange}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm text-gray-900"
                             placeholder="Brief description of the issue"
                         />
                     </div>
@@ -124,7 +124,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ onClose, onTicket
                             required
                             value={formData.description}
                             onChange={handleChange}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm text-gray-900"
                             placeholder="Detailed description of the issue, including steps to reproduce if applicable"
                         />
                     </div>
@@ -216,7 +216,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ onClose, onTicket
                                 name="category"
                                 value={formData.category}
                                 onChange={handleChange}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm text-gray-900"
                             >
                                 <option value="Network Issue">Network Issue</option>
                                 <option value="Hardware Issue">Hardware Issue</option>
@@ -236,7 +236,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ onClose, onTicket
                                 name="priority"
                                 value={formData.priority}
                                 onChange={handleChange}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm text-gray-900"
                             >
                                 <option value="low">Low</option>
                                 <option value="medium">Medium</option>

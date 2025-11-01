@@ -21,6 +21,13 @@ type Config struct {
 	LocalLLMURL   string
 	AIProvider    string // "openai" or "local"
 	CORSOrigin    string
+    // Monitoring / AIOps
+    MonitoringEnabled    bool
+    MonitorPollInterval  time.Duration
+    MonitorDefaultZScore float64
+    MonitorMinConsecutive int
+    AWSRegion            string
+    AnomalyCreateTickets bool
 }
 
 func Load() *Config {
@@ -40,6 +47,11 @@ func Load() *Config {
 		LocalLLMURL:  getEnv("LOCAL_LLM_URL", ""),
 		AIProvider:   getEnv("AI_PROVIDER", "openai"),
 		CORSOrigin:   getEnv("CORS_ORIGIN", "http://localhost:3000"),
+        MonitoringEnabled:    getEnvAsBool("MONITORING_ENABLED", false),
+        MonitorDefaultZScore: getEnvAsFloat("MONITOR_DEFAULT_ZSCORE", 3.0),
+        MonitorMinConsecutive: getEnvAsInt("MONITOR_MIN_CONSECUTIVE", 3),
+        AWSRegion:            getEnv("AWS_REGION", "us-west-2"),
+        AnomalyCreateTickets: getEnvAsBool("ANOMALY_CREATE_TICKETS", true),
 	}
 
 	// Parse JWT expiration duration
@@ -50,6 +62,15 @@ func Load() *Config {
 		duration = 24 * time.Hour
 	}
 	config.JWTExpiresIn = duration
+
+    // Parse monitoring poll interval
+    pollStr := getEnv("MONITOR_POLL_INTERVAL", "60s")
+    pollDur, err := time.ParseDuration(pollStr)
+    if err != nil {
+        log.Printf("Invalid MONITOR_POLL_INTERVAL, using 60s: %v", err)
+        pollDur = 60 * time.Second
+    }
+    config.MonitorPollInterval = pollDur
 
 	return config
 }
@@ -77,4 +98,13 @@ func getEnvAsBool(key string, defaultValue bool) bool {
 		}
 	}
 	return defaultValue
+}
+
+func getEnvAsFloat(key string, defaultValue float64) float64 {
+    if value := os.Getenv(key); value != "" {
+        if f, err := strconv.ParseFloat(value, 64); err == nil {
+            return f
+        }
+    }
+    return defaultValue
 }

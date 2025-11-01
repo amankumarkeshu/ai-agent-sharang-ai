@@ -61,45 +61,45 @@ const Dashboard: React.FC = () => {
     const getStatusIcon = (status: TicketStatus) => {
         switch (status) {
             case 'open':
-                return <Clock className="h-4 w-4 text-yellow-500" />;
+                return <Clock className="h-5 w-5 text-yellow-400" />;
             case 'in_progress':
-                return <AlertCircle className="h-4 w-4 text-blue-500" />;
+                return <AlertCircle className="h-5 w-5 text-ai-blue-400" />;
             case 'resolved':
-                return <CheckCircle className="h-4 w-4 text-green-500" />;
+                return <CheckCircle className="h-5 w-5 text-ai-emerald-400" />;
             case 'closed':
-                return <XCircle className="h-4 w-4 text-gray-500" />;
+                return <XCircle className="h-5 w-5 text-ai-gray-400" />;
             default:
-                return <Clock className="h-4 w-4 text-gray-500" />;
+                return <Clock className="h-5 w-5 text-ai-gray-400" />;
         }
     };
 
     const getPriorityColor = (priority: TicketPriority) => {
         switch (priority) {
             case 'critical':
-                return 'bg-red-100 text-red-800';
+                return 'bg-red-900/50 text-red-300 border border-red-500/50';
             case 'high':
-                return 'bg-orange-100 text-orange-800';
+                return 'bg-orange-900/50 text-orange-300 border border-orange-500/50';
             case 'medium':
-                return 'bg-yellow-100 text-yellow-800';
+                return 'bg-yellow-900/50 text-yellow-300 border border-yellow-500/50';
             case 'low':
-                return 'bg-green-100 text-green-800';
+                return 'bg-emerald-900/50 text-emerald-300 border border-emerald-500/50';
             default:
-                return 'bg-gray-100 text-gray-800';
+                return 'bg-ai-gray-800/50 text-ai-gray-300 border border-ai-gray-600/50';
         }
     };
 
     const getStatusColor = (status: TicketStatus) => {
         switch (status) {
             case 'open':
-                return 'bg-yellow-100 text-yellow-800';
+                return 'bg-yellow-900/50 text-yellow-300 border border-yellow-500/50';
             case 'in_progress':
-                return 'bg-blue-100 text-blue-800';
+                return 'bg-ai-blue-900/50 text-ai-blue-300 border border-ai-blue-500/50';
             case 'resolved':
-                return 'bg-green-100 text-green-800';
+                return 'bg-emerald-900/50 text-emerald-300 border border-emerald-500/50';
             case 'closed':
-                return 'bg-gray-100 text-gray-800';
+                return 'bg-ai-gray-800/50 text-ai-gray-300 border border-ai-gray-600/50';
             default:
-                return 'bg-gray-100 text-gray-800';
+                return 'bg-ai-gray-800/50 text-ai-gray-300 border border-ai-gray-600/50';
         }
     };
 
@@ -123,40 +123,40 @@ const Dashboard: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-ai-dark">
             {/* Header */}
-            <div className="bg-white shadow">
+            <div className="ai-card border-b border-ai-gray-800 mb-0 rounded-none">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center py-6">
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-                            <p className="text-sm text-gray-600">
-                                Welcome back, {user?.name}
+                            <h1 className="text-3xl font-bold ai-text-gradient">Dashboard</h1>
+                            <p className="text-ai-gray-400 mt-1">
+                                Welcome back, <span className="text-ai-cyan-400 font-medium">{user?.name}</span>
                             </p>
                         </div>
-                        <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-3">
                             {user?.role === 'admin' && (
                                 <Link
                                     to="/admin"
-                                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                    className="ai-button-secondary flex items-center space-x-2"
                                 >
-                                    <Settings className="h-4 w-4 mr-2" />
-                                    Admin
+                                    <Settings className="h-4 w-4" />
+                                    <span>Admin</span>
                                 </Link>
                             )}
                             <Link
                                 to="/profile"
-                                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                className="ai-button-secondary flex items-center space-x-2"
                             >
-                                <UserCircle className="h-4 w-4 mr-2" />
-                                Profile
+                                <UserCircle className="h-4 w-4" />
+                                <span>Profile</span>
                             </Link>
                             <button
                                 onClick={handleCreateTicket}
-                                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                className="ai-button-primary flex items-center space-x-2"
                             >
-                                <Plus className="h-4 w-4 mr-2" />
-                                New Ticket
+                                <Plus className="h-4 w-4" />
+                                <span>New Ticket</span>
                             </button>
                         </div>
                     </div>
@@ -165,25 +165,25 @@ const Dashboard: React.FC = () => {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Filters */}
-                <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <div className="ai-card p-6 mb-6 ai-glow">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Search className="h-5 w-5 text-gray-400" />
+                                <Search className="h-5 w-5 text-ai-gray-400" />
                             </div>
                             <input
                                 type="text"
                                 placeholder="Search tickets..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                                className="ai-input w-full pl-10 pr-3"
                             />
                         </div>
 
                         <select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value as TicketStatus | '')}
-                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                            className="ai-input"
                         >
                             <option value="">All Status</option>
                             <option value="open">Open</option>
@@ -195,7 +195,7 @@ const Dashboard: React.FC = () => {
                         <select
                             value={priorityFilter}
                             onChange={(e) => setPriorityFilter(e.target.value as TicketPriority | '')}
-                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                            className="ai-input"
                         >
                             <option value="">All Priority</option>
                             <option value="low">Low</option>
@@ -206,67 +206,74 @@ const Dashboard: React.FC = () => {
 
                         <button
                             onClick={fetchTickets}
-                            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                            className="ai-button-secondary flex items-center justify-center space-x-2"
                         >
-                            <Filter className="h-4 w-4 mr-2" />
-                            Apply Filters
+                            <Filter className="h-4 w-4" />
+                            <span>Apply Filters</span>
                         </button>
                     </div>
                 </div>
 
                 {/* Tickets List */}
-                <div className="bg-white shadow overflow-hidden sm:rounded-md">
+                <div className="ai-card ai-glow overflow-hidden">
                     {loading ? (
-                        <div className="flex justify-center items-center py-12">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                        <div className="flex flex-col justify-center items-center py-16">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ai-blue-500 mb-4"></div>
+                            <p className="text-ai-gray-400">Loading tickets...</p>
                         </div>
                     ) : filteredTickets.length === 0 ? (
-                        <div className="text-center py-12">
-                            <p className="text-gray-500">No tickets found</p>
+                        <div className="text-center py-16">
+                            <div className="w-16 h-16 bg-ai-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Search className="h-8 w-8 text-ai-gray-500" />
+                            </div>
+                            <p className="text-ai-gray-400 text-lg">No tickets found</p>
+                            <p className="text-ai-gray-500 text-sm mt-2">Try adjusting your search criteria</p>
                         </div>
                     ) : (
-                        <ul className="divide-y divide-gray-200">
+                        <div className="divide-y divide-ai-gray-800">
                             {filteredTickets.map((ticket) => (
-                                <li key={ticket.id} className="hover:bg-gray-50">
+                                <div key={ticket.id} className="ai-card-hover border-0 rounded-none">
                                     <div
-                                        className="px-4 py-4 flex items-center justify-between cursor-pointer"
+                                        className="px-6 py-5 flex items-center justify-between cursor-pointer"
                                         onClick={() => handleTicketClick(ticket)}
                                     >
-                                        <div className="flex items-center">
+                                        <div className="flex items-center space-x-4">
                                             <div className="flex-shrink-0">
                                                 {getStatusIcon(ticket.status)}
                                             </div>
-                                            <div className="ml-4">
-                                                <div className="flex items-center">
-                                                    <p className="text-sm font-medium text-gray-900">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center space-x-3 mb-2">
+                                                    <p className="text-lg font-medium text-ai-gray-100 truncate">
                                                         {ticket.title}
                                                     </p>
-                                                    <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(ticket.priority)}`}>
+                                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor(ticket.priority)}`}>
                                                         {ticket.priority}
                                                     </span>
-                                                    <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
+                                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
                                                         {ticket.status.replace('_', ' ')}
                                                     </span>
                                                 </div>
-                                                <div className="mt-1 flex items-center text-sm text-gray-500">
-                                                    <Tag className="h-4 w-4 mr-1" />
-                                                    {ticket.category}
-                                                </div>
-                                                <div className="mt-1 flex items-center text-sm text-gray-500">
-                                                    <Calendar className="h-4 w-4 mr-1" />
-                                                    {new Date(ticket.createdAt).toLocaleDateString()}
+                                                <div className="flex items-center space-x-4 text-sm text-ai-gray-400">
+                                                    <div className="flex items-center space-x-1">
+                                                        <Tag className="h-4 w-4" />
+                                                        <span>{ticket.category}</span>
+                                                    </div>
+                                                    <div className="flex items-center space-x-1">
+                                                        <Calendar className="h-4 w-4" />
+                                                        <span>{new Date(ticket.createdAt).toLocaleDateString()}</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="flex items-center">
-                                            <button className="text-gray-400 hover:text-gray-600">
+                                            <button className="text-ai-gray-400 hover:text-ai-gray-200 p-2 rounded-lg hover:bg-ai-gray-800 transition-colors duration-200">
                                                 <MoreVertical className="h-5 w-5" />
                                             </button>
                                         </div>
                                     </div>
-                                </li>
+                                </div>
                             ))}
-                        </ul>
+                        </div>
                     )}
                 </div>
             </div>
